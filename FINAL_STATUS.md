@@ -6,8 +6,8 @@ Canonical contract: `docs/PROJECT_SPEC.md`.
 
 - Status: v0 implementation complete and verified locally.
 - First vertical slice: complete.
-- Git commit: pending.
-- GitHub push: pending.
+- Git commit: complete (`a3dbcaf`, initial implementation).
+- GitHub push: complete (`https://github.com/machi47/cognitive-atlas`).
 
 ## Implemented Features
 
@@ -104,8 +104,8 @@ The app binds to localhost by default. Do not use Funnel for this private app.
 22. PWA manifest exists: complete.
 23. Tailscale serve docs/scripts exist: complete.
 24. Tests run: complete.
-25. Git commit exists: pending final git step.
-26. GitHub push attempted when possible: pending final git step.
+25. Git commit exists: complete.
+26. GitHub push attempted when possible: complete.
 
 ## Known Limitations
 
@@ -117,7 +117,7 @@ The app binds to localhost by default. Do not use Funnel for this private app.
 
 ## Next Steps
 
-1. Initialize git, commit, and attempt GitHub push.
-2. Run the app through a real mobile Safari PWA install check.
-3. Add SSE or a persistent background queue when the synchronous vertical slice is stable.
-4. Expand source-card provenance linking from source cards into individual claims.
+1. Run the app through a real mobile Safari PWA install check.
+2. Add SSE or a persistent background queue when the synchronous vertical slice is stable.
+3. Expand source-card provenance linking from source cards into individual claims.
+4. Add richer map-detail frontend views for claims, timelines, and latent bridge decisions.

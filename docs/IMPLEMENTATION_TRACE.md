@@ -34,7 +34,7 @@ This file maps the implementation back to [PROJECT_SPEC.md](PROJECT_SPEC.md), wh
 | 26 | Exports | Complete for v0 | Session markdown, map markdown, atlas JSON. |
 | 27 | Testing | Complete | Backend pytest, Vitest, production build, smoke script pass. |
 | 28 | Deployment | Complete for v0 | Dev/build/run/migrate/smoke/backup/Tailscale/systemd scripts and docs. |
-| 29 | GitHub | Pending final step | Commit and push run after final status update. |
+| 29 | GitHub | Complete | Initial repo created and pushed to `https://github.com/machi47/cognitive-atlas`. |
 | 30 | Documentation | Complete for v0 | README and architecture/data/adapters/UI/deployment/learning-fit docs added. |
 | 31 | Phases | Complete for v0 | First vertical slice prioritized and verified. |
 | 32 | Acceptance criteria | Complete/partial noted | See FINAL_STATUS.md for criteria status. |
