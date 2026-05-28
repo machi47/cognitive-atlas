@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MapPatchValidationResult",
+  "type": "object",
+  "required": ["valid", "risk_level", "issues", "auto_apply"],
+  "properties": {
+    "valid": {"type": "boolean"},
+    "risk_level": {"type": "string"},
+    "issues": {"type": "array", "items": {"type": "string"}},
+    "auto_apply": {"type": "boolean"},
+    "cleaned_patch": {"type": ["object", "null"]}
+  },
+  "additionalProperties": false
+}

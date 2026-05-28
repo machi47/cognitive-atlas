@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MapPatch",
+  "type": "object",
+  "required": ["action", "target_map_ids", "create_maps", "add_nodes", "update_nodes", "add_edges", "add_claims", "add_questions", "add_tensions", "add_analogies", "add_latent_bridges", "provenance", "confidence", "risk_level"],
+  "properties": {
+    "action": {"enum": ["update_existing", "create_new", "bridge_maps", "split_suggest", "merge_suggest", "no_op"]},
+    "target_map_ids": {"type": "array", "items": {"type": "string"}},
+    "create_maps": {"type": "array", "items": {"type": "object"}},
+    "add_nodes": {"type": "array", "items": {"type": "object"}},
+    "update_nodes": {"type": "array", "items": {"type": "object"}},
+    "add_edges": {"type": "array", "items": {"type": "object"}},
+    "add_claims": {"type": "array", "items": {"type": "object"}},
+    "add_questions": {"type": "array", "items": {"type": "object"}},
+    "add_tensions": {"type": "array", "items": {"type": "object"}},
+    "add_analogies": {"type": "array", "items": {"type": "object"}},
+    "add_latent_bridges": {"type": "array", "items": {"type": "object"}},
+    "provenance": {"type": "array", "items": {"type": "object"}},
+    "confidence": {"type": "number"},
+    "risk_level": {"type": "string"}
+  },
+  "additionalProperties": false
+}

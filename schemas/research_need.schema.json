@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ResearchNeedResult",
+  "type": "object",
+  "required": ["needs_research", "freshness_required", "reasons", "query_intents", "source_types", "priority"],
+  "properties": {
+    "needs_research": {"type": "boolean"},
+    "freshness_required": {"type": "boolean"},
+    "reasons": {"type": "array", "items": {"type": "string"}},
+    "query_intents": {"type": "array", "items": {"type": "string"}},
+    "source_types": {"type": "array", "items": {"type": "string"}},
+    "priority": {"type": "number"}
+  },
+  "additionalProperties": false
+}

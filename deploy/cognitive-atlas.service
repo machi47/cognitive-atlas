@@ -1,0 +1,17 @@
+[Unit]
+Description=Cognitive Atlas local learning kernel
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=__INSTALL_DIR__
+Environment=ATLAS_HOST=127.0.0.1
+Environment=ATLAS_PORT=8787
+Environment=ATLAS_DATA_DIR=./data
+ExecStart=__INSTALL_DIR__/scripts/run_api.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+

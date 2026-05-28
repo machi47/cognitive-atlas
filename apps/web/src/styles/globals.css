@@ -1,0 +1,113 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+button,
+select,
+textarea,
+input {
+  font: inherit;
+}
+
+textarea,
+input,
+select {
+  font-size: 16px;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+code {
+  background: var(--panel-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.2rem 0.35rem;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.primary-action,
+.send-button {
+  align-items: center;
+  background: var(--accent);
+  border-radius: 8px;
+  color: #f8fafc;
+  display: inline-flex;
+  gap: 0.45rem;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0.65rem 0.85rem;
+}
+
+.primary-action:hover,
+.send-button:hover {
+  background: var(--accent-strong);
+}
+
+.ghost-action,
+.icon-button,
+.message-actions button {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  display: inline-flex;
+  gap: 0.4rem;
+  min-height: 36px;
+  padding: 0.45rem 0.65rem;
+}
+
+.compact {
+  min-height: 32px;
+  padding: 0.35rem 0.55rem;
+}
+
+.error-state {
+  background: color-mix(in srgb, var(--danger) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-radius: 8px;
+  color: var(--danger);
+  padding: 0.75rem;
+}
+
+.processing-state,
+.loading-state {
+  background: var(--panel-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  padding: 0.75rem;
+}
+

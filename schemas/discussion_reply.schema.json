@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DiscussionReply",
+  "type": "object",
+  "required": ["message", "response_mode", "source_ids_used", "suggested_followups", "uncertainty_notes", "should_research_more"],
+  "properties": {
+    "message": {"type": "string"},
+    "response_mode": {"type": "string"},
+    "source_ids_used": {"type": "array", "items": {"type": "string"}},
+    "suggested_followups": {"type": "array", "items": {"type": "string"}, "maxItems": 3},
+    "uncertainty_notes": {"type": "array", "items": {"type": "string"}},
+    "should_research_more": {"type": "boolean"}
+  },
+  "additionalProperties": false
+}

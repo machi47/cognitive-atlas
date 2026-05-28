@@ -1,0 +1,19 @@
+[server]
+host = "127.0.0.1"
+port = 8787
+
+[data]
+dir = "./data"
+
+[llm]
+provider = "fake"
+codex_bin = "codex"
+codex_live_search = false
+codex_timeout_seconds = 180
+
+[security]
+app_access_token = ""
+
+[debug]
+enabled = false
+store_llm_prompts = false

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ResearchPlan",
+  "type": "object",
+  "required": ["queries", "source_types", "priority"],
+  "properties": {
+    "queries": {"type": "array", "items": {"type": "object"}},
+    "source_types": {"type": "array", "items": {"type": "string"}},
+    "priority": {"type": "number"}
+  },
+  "additionalProperties": false
+}

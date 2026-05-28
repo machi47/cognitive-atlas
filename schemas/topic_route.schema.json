@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TopicRouteResult",
+  "type": "object",
+  "required": ["segments", "candidate_new_maps", "matched_map_ids", "notes"],
+  "properties": {
+    "segments": {"type": "array", "items": {"type": "object"}},
+    "candidate_new_maps": {"type": "array", "items": {"type": "object"}},
+    "matched_map_ids": {"type": "array", "items": {"type": "string"}},
+    "notes": {"type": "string"}
+  },
+  "additionalProperties": false
+}

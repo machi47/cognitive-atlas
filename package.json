@@ -1,0 +1,11 @@
+{
+  "name": "cognitive-atlas",
+  "private": true,
+  "scripts": {
+    "install:all": "pnpm --dir apps/web install && python3.12 -m venv .venv && . .venv/bin/activate && pip install -e apps/api[dev]",
+    "dev": "scripts/dev.sh",
+    "test": "scripts/test.sh",
+    "build": "scripts/build.sh",
+    "smoke": "scripts/smoke_test.sh"
+  }
+}
