@@ -10,6 +10,7 @@ fi
 source .venv/bin/activate
 export ATLAS_DATA_DIR="${ATLAS_DATA_DIR:-./data/smoke}"
 export ATLAS_LLM_PROVIDER=fake
+export ATLAS_ALLOW_FAKE_FOR_TESTS=true
 python -m atlas_api.db.migrate
 
 uvicorn atlas_api.main:app --app-dir apps/api --host 127.0.0.1 --port 8787 >/tmp/cognitive-atlas-smoke.log 2>&1 &

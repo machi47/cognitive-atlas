@@ -1,6 +1,6 @@
 {
-  "name": "Cognitive Atlas",
-  "short_name": "Atlas",
+  "name": "Learning Chat",
+  "short_name": "Chat",
   "display": "standalone",
   "start_url": "/",
   "scope": "/",

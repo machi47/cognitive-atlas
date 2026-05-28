@@ -51,7 +51,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Cognitive Atlas", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Learning Chat", version="0.1.0", lifespan=lifespan)
 settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
@@ -111,7 +111,7 @@ async def spa_fallback(full_path: str):
     return JSONResponse(
         status_code=200,
         content={
-            "app": "Cognitive Atlas API",
+            "app": "Learning Chat API",
             "message": "Frontend build not found. Run scripts/build.sh for production or scripts/dev.sh for Vite dev.",
         },
     )
@@ -120,18 +120,9 @@ async def spa_fallback(full_path: str):
 async def _select_adapter(settings):
     provider = settings.llm_provider.lower()
     if provider == "codex":
-        codex = CodexCliAdapter(settings)
-        health = await codex.healthcheck()
-        if health.available:
-            return codex
-        log.warning("codex_unavailable_falling_back_to_fake", message=health.message)
-        return FakeLlmAdapter()
+        return CodexCliAdapter(settings)
     if provider == "openai":
-        openai = OpenAIResponsesAdapter(settings)
-        health = await openai.healthcheck()
-        if health.available:
-            return openai
-        log.warning("openai_unavailable_falling_back_to_fake", message=health.message)
+        return OpenAIResponsesAdapter(settings)
+    if provider == "fake" and settings.allow_fake_for_tests:
         return FakeLlmAdapter()
-    return FakeLlmAdapter()
-
+    return CodexCliAdapter(settings)

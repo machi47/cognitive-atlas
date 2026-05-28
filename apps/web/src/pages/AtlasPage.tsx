@@ -8,10 +8,9 @@ export default function AtlasPage() {
   const tree = useQuery({ queryKey: ["atlas-tree"], queryFn: getAtlasTree });
   return (
     <section className="page-panel atlas-page">
-      <h1>Atlas</h1>
+      <h1>Memory</h1>
       {params.mapId && <p className="muted">Map selected: {params.mapId}</p>}
       <AtlasTree tree={tree.data} />
     </section>
   );
 }
-

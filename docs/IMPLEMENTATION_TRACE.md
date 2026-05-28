@@ -7,7 +7,7 @@ This file maps the implementation back to [PROJECT_SPEC.md](PROJECT_SPEC.md), wh
 | Spec section | Requirement area | Implementation status | Evidence |
 | --- | --- | --- | --- |
 | 0 | Conversation-centered learning kernel intent | Complete for v0 | App implements clean conversation plus hidden extraction/map residue. |
-| 1 | Defaults | Complete | FastAPI, Pydantic v2, SQLite/FTS5, React/Vite, TanStack Query, Zustand, fake/Codex adapters, local data directory. |
+| 1 | Defaults | Corrected | FastAPI, Pydantic v2, SQLite/FTS5, React/Vite, TanStack Query, Zustand, Codex runtime, fake adapter test-only, local data directory. |
 | 3 | Clean conversation plane | Complete for v0 | `ConversationalAgent` returns compact reply; artifacts/patches stay in inspector/API. |
 | 4 | Core turn pipeline | Complete for v0 | `TurnPipeline` runs intake, route, research detection, reply, extraction, validation, patch write, FTS/event persistence. |
 | 5 | Map forest | Complete for v0 | Maps/nodes/edges/questions/bridges are persisted and projected as a tree. |
@@ -15,16 +15,16 @@ This file maps the implementation back to [PROJECT_SPEC.md](PROJECT_SPEC.md), wh
 | 7 | Epistemic model | Complete for v0 | Claims/relations carry epistemic status, confidence, provenance, source ids. |
 | 8 | Cross-domain importance | Complete for v0 | LatentBridge schema/model/table/writer/projection included, capped in map graph. |
 | 9 | Response style | Complete for v0 | Fake adapter and discussion service produce compact no-table answers. |
-| 10 | LLM adapter design | Complete for v0 | Fake, Codex CLI, and OpenAI placeholder adapters implement `LlmAdapter`. |
+| 10 | LLM adapter design | Corrected | Codex CLI is default runtime; fake adapter is test-only and requires `ATLAS_ALLOW_FAKE_FOR_TESTS=true`. |
 | 11 | Worker roles | Complete for v0 | Services are separate classes for intake, context, routing, research, sources, reply, extraction, patching, UI, export, learning fit. |
 | 12 | Database schema | Complete | Migration creates requested tables, WAL, indexes, FTS tables. |
 | 13 | API endpoints | Complete for v0 | Requested endpoint families exist; SSE is deferred in favor of polling. |
-| 14 | Frontend UX | Complete for v0 | Desktop shell, mobile nav, quick capture, conversation, composer, atlas tree, inspector, sources, settings. |
+| 14 | Frontend UX | Corrected | Chat-first shell, compact mobile header, no primary mode dropdown, no fake banner, no bottom-tab chat surface. |
 | 15 | Learning fit | Complete for v0 | Feedback artifact endpoint and `/api/learning-fit/report` implemented. |
 | 16 | Sources/research | Complete for v0 | Manual/source search endpoints plus OpenAlex/Crossref/arXiv best-effort broker; explicit research triggers only. |
 | 17 | Context isolation | Complete for v0 | `ContextBroker` enforces bounded role packets; discussion context excludes whole atlas. |
 | 18 | Structured schemas | Complete | JSON schema files and Pydantic models added. |
-| 19 | Background processing | Partial by design | Core pipeline is synchronous for reliable v0; status artifacts/events and polling endpoints exist; queue abstraction included. |
+| 19 | Background processing | Partial by design | Core discussion path is synchronous for reliable v0; extraction failures become hidden structure-update artifacts; queue abstraction included. |
 | 20 | File structure | Complete | Repo follows requested monorepo layout. |
 | 21 | Backend details | Complete for v0 | Config/env/TOML, DB manager, migration runner, structured logs, optional token auth, UTC IDs/timestamps. |
 | 22 | Codex CLI adapter | Complete for v0 | Healthcheck, subprocess execution, schema file support, timeout, run logs, graceful fallback. |
@@ -56,12 +56,14 @@ This file maps the implementation back to [PROJECT_SPEC.md](PROJECT_SPEC.md), wh
 - Use `python3.12` explicitly because `/usr/bin/python3` is Python 3.9.6 on this machine.
 - Use `pnpm` because it is installed.
 - Use synchronous core pipeline in v0 for the first reply, with events/artifacts preserving worker state. This keeps the vertical slice reliable while leaving the queue abstraction in place.
-- Default LLM provider is fake so the app works without keys or Codex auth at runtime. Codex CLI support remains available through the adapter.
+- Default runtime provider is Codex CLI. Fake responses are blocked unless `ATLAS_ALLOW_FAKE_FOR_TESTS=true`.
 - Do not run source searches for every frontier-looking turn in default discuss mode. The detector flags research need, but source broker runs only for explicit research/source/current/latest/citation requests to preserve latency and avoid fake claims that research happened.
+- Do not run Codex before the discussion response for deterministic routing/research detection. This prevents pre-answer worker failures from blocking a normal chat turn.
+- If Codex/model generation fails for discussion, return a structured error and do not create an assistant turn.
 
 ## Completed Feature Ledger
 
 - Canonical spec, implementation trace, and final status ledger were created before app code.
-- Backend vertical slice is implemented and tested: session creation, turn submission, compact fake reply, artifact extraction, map patch validation/application, atlas tree update, search, exports.
-- Frontend vertical slice is implemented and built: quick capture, sessions, conversation, composer, atlas tree, inspector, sources, search, settings, PWA/mobile shell.
+- Backend vertical slice is implemented and tested: session creation, turn submission, Codex runtime answer path, test-only fake fixtures, artifact extraction, map patch validation/application, memory tree update, search, exports.
+- Frontend vertical slice is corrected and built: chat-first quick capture, sessions, conversation, composer, optional memory/inspector, sources, search, settings, PWA/mobile shell.
 - Verification passed: backend pytest, frontend Vitest, production build, smoke test, Vite dev server start check.

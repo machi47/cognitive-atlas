@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from atlas_api.llm.base import LlmAdapter
+from atlas_api.llm.schemas import load_schema
 from atlas_api.models.llm import LlmJsonRequest
 from atlas_api.models.patches import PostTurnExtraction
 
@@ -11,10 +12,10 @@ class PostTurnExtractor:
 
     async def extract(self, extraction_context: str) -> PostTurnExtraction:
         result = await self.llm.complete_json(
-            LlmJsonRequest(task="post_turn_extraction", prompt=extraction_context, schema_name="post_turn_extraction")
+            LlmJsonRequest(task="post_turn_extraction", prompt=extraction_context, schema_name="post_turn_extraction"),
+            schema=load_schema("post_turn_extraction"),
         )
         try:
             return PostTurnExtraction.model_validate(result.data)
         except Exception:
             return PostTurnExtraction(notes="Extraction provider returned malformed output.")
-

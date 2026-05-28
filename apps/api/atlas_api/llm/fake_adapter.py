@@ -51,10 +51,18 @@ class FakeLlmAdapter(LlmAdapter):
         return LlmJsonResult(data=data, provider_name=self.provider_name, raw={"task": request.task})
 
     async def healthcheck(self) -> LlmHealth:
-        return LlmHealth(provider_name=self.provider_name, available=True, message="Offline/fake LLM mode")
+        return LlmHealth(provider_name=self.provider_name, available=True, message="Fake LLM test mode")
 
     def _discussion_message(self, prompt: str) -> str:
-        lower = prompt.lower()
+        message = self._current_message(prompt)
+        lower = message.lower()
+        if "substratecad" in lower or "substrate cad" in lower:
+            return (
+                "Yeah - for substrateCAD from first principles, the first move is defining what substrate means: PCB substrate, IC/package substrate, "
+                "or a broader fabrication-aware CAD system. The foundation stack is roughly: a CAD/geometry kernel, a substrate object schema, layers, "
+                "materials, vias, traces/features, fabrication and process constraints, electrical/physical constraints, manufacturability rules, and "
+                "simulation/verification. I would start by defining the minimum object system: layers, materials, features, vias, constraints, and process rules."
+            )
         if "analog" in lower or "compute in memory" in lower or "compute-in-memory" in lower:
             return (
                 "Yes - the link is data movement. Compute-in-memory tries to reduce the energy and latency of moving operands back and forth, "
@@ -68,14 +76,13 @@ class FakeLlmAdapter(LlmAdapter):
                 "claims, and bridges. That avoids making the chat agent carry the whole atlas in its head. The map forest then becomes a memory substrate, "
                 "not the thing you have to stare at every time you think."
             )
-        topic = keywords_title(prompt)
+        topic = keywords_title(message)
         return (
-            f"I would keep this centered on {topic}. The important move is to capture the messy thought first, then separate the core claim, the uncertainty, "
-            "and the next question. That gives you something useful now without forcing premature structure."
+            f"I would start with {topic}. The useful move is to answer the concrete thing you asked, then keep track of the uncertainty and next question in the background."
         )
 
     def _followups(self, prompt: str) -> list[str]:
-        lower = prompt.lower()
+        lower = self._current_message(prompt).lower()
         if "analog" in lower:
             return ["Check conversion overhead assumptions", "Map data movement constraints"]
         if "agent" in lower:
@@ -83,7 +90,7 @@ class FakeLlmAdapter(LlmAdapter):
         return ["Turn this into a map", "Ask for a sharper critique"]
 
     def _needs_research(self, prompt: str) -> bool:
-        lower = prompt.lower()
+        lower = self._current_message(prompt).lower()
         frontier_terms = [
             "current",
             "latest",
@@ -102,7 +109,37 @@ class FakeLlmAdapter(LlmAdapter):
         return any(term in lower for term in frontier_terms)
 
     def _extraction(self, prompt: str) -> dict[str, Any]:
-        lower = prompt.lower()
+        lower = self._current_message(prompt).lower()
+        if "substratecad" in lower or "substrate cad" in lower:
+            return {
+                "topics": ["substrateCAD", "fabrication-aware CAD", "geometry kernel"],
+                "claims": [
+                    {
+                        "text": "Building substrateCAD from first principles requires a geometry/CAD kernel plus a substrate/process object model.",
+                        "claim_type": "learning_goal",
+                        "epistemic_status": "user_asserted",
+                        "confidence": 0.72,
+                        "source_ids": [],
+                    }
+                ],
+                "node_candidates": [
+                    {"label": "substrateCAD", "description": "A CAD system for substrate design grounded in fabrication and physical constraints.", "node_type": "project_goal", "epistemic_status": "user_asserted", "confidence": 0.8, "local_salience": 0.9, "global_salience": 0.6, "novelty_score": 0.6, "bridge_potential": 0.8},
+                    {"label": "geometry kernel", "description": "Core geometric representation and operations for CAD entities.", "node_type": "foundation", "epistemic_status": "assistant_inferred", "confidence": 0.7, "local_salience": 0.8, "global_salience": 0.5, "novelty_score": 0.4, "bridge_potential": 0.5},
+                    {"label": "fabrication process constraints", "description": "Rules imposed by manufacturable layers, materials, vias, traces, and process limits.", "node_type": "constraint", "epistemic_status": "assistant_inferred", "confidence": 0.7, "local_salience": 0.8, "global_salience": 0.6, "novelty_score": 0.5, "bridge_potential": 0.8},
+                ],
+                "edge_candidates": [
+                    {"from_label": "fabrication process constraints", "to_label": "substrateCAD", "relation_type": "constrains", "label": "constrains", "description": "Process limits constrain valid substrateCAD geometry and layout.", "epistemic_status": "assistant_inferred", "confidence": 0.68, "salience": 0.8}
+                ],
+                "open_questions": [
+                    {"question": "Does substrate mean PCB substrate, IC/package substrate, or a broader fabrication-aware CAD system?", "status": "open", "priority": 0.9}
+                ],
+                "tensions": [],
+                "analogies": [],
+                "latent_bridges": [],
+                "source_needs": ["Foundational CAD kernels and fabrication/process-rule references."],
+                "forbidden_user_state_claims": [],
+                "notes": "Fake extraction for test-only substrateCAD flow.",
+            }
         if "analog" in lower or "compute in memory" in lower or "compute-in-memory" in lower:
             return {
                 "topics": ["analog compute", "compute-in-memory", "SoC design"],
@@ -176,3 +213,11 @@ class FakeLlmAdapter(LlmAdapter):
             "notes": "Generic fake extraction.",
         }
 
+    def _current_message(self, prompt: str) -> str:
+        marker = "Current user message:"
+        if marker in prompt:
+            return prompt.split(marker, 1)[1].strip()
+        marker = "User:"
+        if marker in prompt:
+            return prompt.split(marker, 1)[1].split("\nAssistant:", 1)[0].strip()
+        return prompt

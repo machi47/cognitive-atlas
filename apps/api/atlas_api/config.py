@@ -13,11 +13,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    app_name: str = "Cognitive Atlas"
+    app_name: str = "Learning Chat"
     host: str = Field(default="127.0.0.1", alias="ATLAS_HOST")
     port: int = Field(default=8787, alias="ATLAS_PORT")
     data_dir: Path = Field(default=Path("./data"), alias="ATLAS_DATA_DIR")
-    llm_provider: str = Field(default="fake", alias="ATLAS_LLM_PROVIDER")
+    llm_provider: str = Field(default="codex", alias="ATLAS_LLM_PROVIDER")
     codex_bin: str = Field(default="codex", alias="ATLAS_CODEX_BIN")
     codex_model_discuss: str = Field(default="gpt-5.5", alias="ATLAS_CODEX_MODEL_DISCUSS")
     codex_model_extract: str = Field(default="gpt-5.5", alias="ATLAS_CODEX_MODEL_EXTRACT")
@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     app_access_token: str = Field(default="", alias="APP_ACCESS_TOKEN")
     debug: bool = Field(default=False, alias="ATLAS_DEBUG")
     store_llm_prompts: bool = Field(default=False, alias="ATLAS_STORE_LLM_PROMPTS")
+    allow_fake_for_tests: bool = Field(default=False, alias="ATLAS_ALLOW_FAKE_FOR_TESTS")
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
     cors_origins: str = Field(default="http://127.0.0.1:5173,http://localhost:5173", alias="ATLAS_CORS_ORIGINS")
 
@@ -116,4 +117,3 @@ def get_settings() -> Settings:
     settings = Settings()
     settings.ensure_dirs()
     return settings
-

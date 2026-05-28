@@ -12,8 +12,11 @@ class ContextBroker:
 
     def build_discussion_context(self, current: str, recent_turns: list[TurnOut], mode: str, response_budget: dict) -> str:
         lines = [
-            f"Mode: {mode}",
-            f"Response budget: {response_budget}",
+            "You are the conversation plane of a private learning app.",
+            "Answer the user's actual message directly. Do not mention internal modes, maps, patches, artifacts, or backend state.",
+            "Stay compact unless the user asks for depth. If the user is correcting you or frustrated, acknowledge the miss and respond to the correction.",
+            f"Internal route label, never mention this: {mode}",
+            f"Target response budget, never mention this: {response_budget}",
             "Recent dialogue:",
         ]
         for turn in recent_turns[-10:]:
@@ -37,4 +40,3 @@ class ContextBroker:
         }
         max_chars = budgets.get(role, self.discussion_max_chars)
         return {"role": role, "content": clamp_chars(content, max_chars), "max_chars": max_chars}
-

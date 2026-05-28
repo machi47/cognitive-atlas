@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from atlas_api.config import Settings
+from atlas_api.errors import LlmMalformedOutputError, LlmProviderFailedError, LlmUnauthenticatedError, LlmUnavailableError
 from atlas_api.llm.base import LlmAdapter
 from atlas_api.models.llm import LlmHealth, LlmJsonRequest, LlmJsonResult, LlmTextRequest, LlmTextResult
 from atlas_api.util.ids import new_id
@@ -39,16 +40,21 @@ class CodexCliAdapter(LlmAdapter):
 
     async def complete_text(self, request: LlmTextRequest) -> LlmTextResult:
         run = await self._run_codex(request.prompt, request.task, request.model, request.reasoning_effort, None)
+        self._raise_for_failed_run(run)
         return LlmTextResult(text=run.get("message", ""), provider_name=self.provider_name, raw=run)
 
     async def complete_json(self, request: LlmJsonRequest, schema: dict[str, Any] | None = None) -> LlmJsonResult:
         run = await self._run_codex(request.prompt, request.task, request.model, request.reasoning_effort, schema)
+        self._raise_for_failed_run(run)
         message = run.get("message", "")
         data = run.get("json")
         if data is None:
             data = self._extract_json(message)
         if not isinstance(data, dict):
-            data = {"error": "malformed_json", "raw_message": message[:4000]}
+            raise LlmMalformedOutputError(
+                "Codex CLI returned malformed JSON for a structured task",
+                {"provider": "Codex CLI", "task": request.task, "run_id": run.get("run_id"), "message_summary": message[:1200]},
+            )
         return LlmJsonResult(data=data, provider_name=self.provider_name, raw=run)
 
     async def _run_codex(
@@ -59,6 +65,17 @@ class CodexCliAdapter(LlmAdapter):
         reasoning_effort: str | None,
         schema: dict[str, Any] | None,
     ) -> dict[str, Any]:
+        health = await self.healthcheck()
+        if not health.available:
+            raise LlmUnavailableError(
+                health.message,
+                {
+                    "provider": "Codex CLI",
+                    "reason": health.message,
+                    "next_commands": ["codex --version", "codex login"],
+                    **health.details,
+                },
+            )
         run_id = new_id("codexrun")
         run_dir = self.settings.codex_runs_dir / run_id
         run_dir.mkdir(parents=True, exist_ok=True)
@@ -73,6 +90,10 @@ class CodexCliAdapter(LlmAdapter):
             "exec",
             "--skip-git-repo-check",
             "--json",
+            "--sandbox",
+            "read-only",
+            "--cd",
+            str(Path.cwd()),
             "--model",
             model or self._model_for_task(task),
             "-c",
@@ -84,7 +105,8 @@ class CodexCliAdapter(LlmAdapter):
             args.extend(["--output-schema", str(schema_path)])
         if self.settings.codex_live_search and "research" in task.lower():
             args.append("--search")
-        args.append("-")
+        output_path = run_dir / "last_message.txt"
+        args.extend(["--output-last-message", str(output_path), "-"])
         try:
             proc = await asyncio.create_subprocess_exec(
                 *args,
@@ -98,6 +120,10 @@ class CodexCliAdapter(LlmAdapter):
             (run_dir / "stdout.jsonl").write_text(stdout_text, encoding="utf-8")
             (run_dir / "stderr.log").write_text(stderr_text, encoding="utf-8")
             message, parsed_json = self._parse_json_stream(stdout_text)
+            if output_path.exists():
+                file_message = output_path.read_text(encoding="utf-8")
+                if file_message.strip():
+                    message = file_message.strip()
             return {
                 "run_id": run_id,
                 "returncode": proc.returncode,
@@ -109,6 +135,32 @@ class CodexCliAdapter(LlmAdapter):
             return {"run_id": run_id, "returncode": None, "message": "", "error": "timeout"}
         except Exception as exc:
             return {"run_id": run_id, "returncode": None, "message": "", "error": str(exc)}
+
+    def _raise_for_failed_run(self, run: dict[str, Any]) -> None:
+        if run.get("error") == "timeout":
+            raise LlmProviderFailedError(
+                "Codex CLI timed out",
+                {"provider": "Codex CLI", "reason": "timeout", "run_id": run.get("run_id"), "next_commands": ["codex --version", "codex login"]},
+            )
+        if run.get("error"):
+            raise LlmProviderFailedError(
+                "Codex CLI failed",
+                {"provider": "Codex CLI", "reason": run.get("error"), "run_id": run.get("run_id"), "next_commands": ["codex --version", "codex login"]},
+            )
+        returncode = run.get("returncode")
+        if returncode not in (0, None):
+            stderr = str(run.get("stderr_tail", ""))
+            lower = stderr.lower()
+            details = {
+                "provider": "Codex CLI",
+                "returncode": returncode,
+                "stderr_summary": stderr[-1200:],
+                "run_id": run.get("run_id"),
+                "next_commands": ["codex --version", "codex login"],
+            }
+            if "auth" in lower or "login" in lower or "unauthorized" in lower:
+                raise LlmUnauthenticatedError("Codex CLI is not authenticated", details)
+            raise LlmProviderFailedError("Codex CLI exited with a nonzero status", details)
 
     def _model_for_task(self, task: str) -> str:
         task_lower = task.lower()
@@ -158,4 +210,3 @@ class CodexCliAdapter(LlmAdapter):
             return json.loads(text[start : end + 1])
         except json.JSONDecodeError:
             return None
-

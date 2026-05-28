@@ -6,7 +6,7 @@ port = 8787
 dir = "./data"
 
 [llm]
-provider = "fake"
+provider = "codex"
 codex_bin = "codex"
 codex_live_search = false
 codex_timeout_seconds = 180

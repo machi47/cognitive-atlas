@@ -41,11 +41,11 @@ class Repository:
                 return DEFAULT_WORKSPACE_ID
             await conn.execute(
                 "insert into workspaces(id, name, created_at, updated_at, settings_json) values(?, ?, ?, ?, ?)",
-                (DEFAULT_WORKSPACE_ID, "Personal Atlas", now, now, "{}"),
+                (DEFAULT_WORKSPACE_ID, "Personal Memory", now, now, "{}"),
             )
             await conn.execute(
                 "insert into events(id, workspace_id, event_type, aggregate_type, aggregate_id, payload_json, created_at) values(?, ?, ?, ?, ?, ?, ?)",
-                (new_id("evt"), DEFAULT_WORKSPACE_ID, "workspace_created", "workspace", DEFAULT_WORKSPACE_ID, dumps({"name": "Personal Atlas"}), now),
+                (new_id("evt"), DEFAULT_WORKSPACE_ID, "workspace_created", "workspace", DEFAULT_WORKSPACE_ID, dumps({"name": "Personal Memory"}), now),
             )
             return DEFAULT_WORKSPACE_ID
 
@@ -886,4 +886,3 @@ class Repository:
             causation_id=row["causation_id"],
             correlation_id=row["correlation_id"],
         )
-

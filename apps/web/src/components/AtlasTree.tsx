@@ -2,7 +2,7 @@ import type { AtlasTree as AtlasTreeType, AtlasTreeMap } from "../api/types";
 
 export default function AtlasTree({ tree }: { tree?: AtlasTreeType }) {
   if (!tree || (!tree.uncategorized_maps.length && !tree.domains.length)) {
-    return <p className="muted">Maps will appear after a thought is processed.</p>;
+    return <p className="muted">Memory will appear after a chat is processed.</p>;
   }
   return (
     <div className="atlas-tree">
@@ -26,4 +26,3 @@ function MapRow({ map }: { map: AtlasTreeMap }) {
     </div>
   );
 }
-

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from atlas_api.db.repositories import Repository
+from atlas_api.errors import AppError
 from atlas_api.llm.base import LlmAdapter
 from atlas_api.models.common import ProcessingState
 from atlas_api.models.turns import TurnCreate, TurnResponse, TurnArtifactsSummary
@@ -79,41 +80,68 @@ class TurnPipeline:
             {"mode": mode, "source_ids_used": reply.source_ids_used, "uncertainty_notes": reply.uncertainty_notes},
         )
 
-        extraction_context = self.context_broker.build_extraction_context(normalized, reply.message, source_cards)
-        extraction = await self.extractor.extract(extraction_context)
-        extraction_artifact = await self.repo.create_artifact(
-            workspace_id,
-            session.id,
-            assistant_turn.id,
-            "post_turn_extraction",
-            "Post-turn extraction",
-            extraction.model_dump(),
-            "succeeded",
-            {"provider": self.llm.provider_name},
-        )
-        patch = await self.patch_builder.build(workspace_id, session.id, user_turn.id, extraction)
-        validation = self.patch_validator.validate(patch, extraction.forbidden_user_state_claims)
-        validation_artifact = await self.repo.create_artifact(
-            workspace_id,
-            session.id,
-            assistant_turn.id,
-            "map_patch_validation",
-            "Map patch validation",
-            validation.model_dump(mode="json"),
-            "succeeded" if validation.valid else "failed",
-            {},
-        )
-        patch_out, counters = await self.map_writer.persist(workspace_id, session.id, user_turn.id, patch, validation)
-        patch_artifact = await self.repo.create_artifact(
-            workspace_id,
-            session.id,
-            assistant_turn.id,
-            "map_patch",
-            "Map patch",
-            {"patch_id": patch_out.id, "status": patch_out.status, "counters": counters, "patch": patch_out.patch},
-            patch_out.status,
-            {},
-        )
+        artifact_ids: list[str] = []
+        patch_ids: list[str] = []
+        map_ids: list[str] = []
+        processing_message = "updated"
+        try:
+            extraction_context = self.context_broker.build_extraction_context(normalized, reply.message, source_cards)
+            extraction = await self.extractor.extract(extraction_context)
+            extraction_artifact = await self.repo.create_artifact(
+                workspace_id,
+                session.id,
+                assistant_turn.id,
+                "post_turn_extraction",
+                "Post-turn extraction",
+                extraction.model_dump(),
+                "succeeded",
+                {"provider": self.llm.provider_name},
+            )
+            artifact_ids.append(extraction_artifact["id"])
+            patch = await self.patch_builder.build(workspace_id, session.id, user_turn.id, extraction)
+            validation = self.patch_validator.validate(patch, extraction.forbidden_user_state_claims)
+            validation_artifact = await self.repo.create_artifact(
+                workspace_id,
+                session.id,
+                assistant_turn.id,
+                "map_patch_validation",
+                "Map patch validation",
+                validation.model_dump(mode="json"),
+                "succeeded" if validation.valid else "failed",
+                {},
+            )
+            artifact_ids.append(validation_artifact["id"])
+            patch_out, counters = await self.map_writer.persist(workspace_id, session.id, user_turn.id, patch, validation)
+            patch_artifact = await self.repo.create_artifact(
+                workspace_id,
+                session.id,
+                assistant_turn.id,
+                "map_patch",
+                "Map patch",
+                {"patch_id": patch_out.id, "status": patch_out.status, "counters": counters, "patch": patch_out.patch},
+                patch_out.status,
+                {},
+            )
+            artifact_ids.append(patch_artifact["id"])
+            patch_ids.append(patch_out.id)
+            map_ids.extend(patch_out.target_map_ids)
+            processing_message = patch_out.status
+        except Exception as exc:
+            details = {"error": getattr(exc, "message", str(exc)), "type": type(exc).__name__}
+            if isinstance(exc, AppError):
+                details = {"error": exc.message, "code": exc.code, "details": exc.details or {}}
+            failed_artifact = await self.repo.create_artifact(
+                workspace_id,
+                session.id,
+                assistant_turn.id,
+                "structure_update_failed",
+                "Structure update failed",
+                details,
+                "failed",
+                {"provider": self.llm.provider_name},
+            )
+            artifact_ids.append(failed_artifact["id"])
+            processing_message = "structure update failed"
         refreshed = await self.repo.get_session(session.id)
         return TurnResponse(
             session=refreshed or session,
@@ -130,12 +158,12 @@ class TurnPipeline:
                     "patch_validation",
                     "patch_persistence",
                 ],
-                message="updated" if patch_out.status == "applied" else patch_out.status,
+                message=processing_message,
             ),
             artifacts_summary=TurnArtifactsSummary(
-                artifact_ids=[extraction_artifact["id"], validation_artifact["id"], patch_artifact["id"]],
-                patch_ids=[patch_out.id],
+                artifact_ids=artifact_ids,
+                patch_ids=patch_ids,
                 source_ids=[source["id"] for source in source_cards if "id" in source],
-                map_ids=patch_out.target_map_ids,
+                map_ids=map_ids,
             ),
         )

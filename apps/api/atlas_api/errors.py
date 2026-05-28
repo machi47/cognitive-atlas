@@ -32,7 +32,22 @@ class AuthRequiredError(AppError):
 
 class LlmUnavailableError(AppError):
     def __init__(self, message: str = "LLM provider unavailable", details: dict[str, Any] | None = None):
-        super().__init__("llm_unavailable", message, 503, details)
+        super().__init__("model_provider_unavailable", message, 503, details)
+
+
+class LlmUnauthenticatedError(AppError):
+    def __init__(self, message: str = "LLM provider unauthenticated", details: dict[str, Any] | None = None):
+        super().__init__("model_provider_unauthenticated", message, 401, details)
+
+
+class LlmProviderFailedError(AppError):
+    def __init__(self, message: str = "LLM provider failed", details: dict[str, Any] | None = None):
+        super().__init__("model_provider_failed", message, 502, details)
+
+
+class LlmMalformedOutputError(AppError):
+    def __init__(self, message: str = "LLM provider returned malformed output", details: dict[str, Any] | None = None):
+        super().__init__("llm_malformed_output", message, 502, details)
 
 
 class PatchValidationFailedError(AppError):
@@ -69,4 +84,3 @@ def install_error_handlers(app: FastAPI) -> None:
             status_code=500,
             content=error_payload(payload, getattr(request.state, "request_id", None)),
         )
-

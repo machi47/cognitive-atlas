@@ -22,7 +22,7 @@ Canonical contract: `docs/PROJECT_SPEC.md`.
 - Map forest persistence: topic maps, nodes, edges, claims, open questions, analogies, latent bridges, patches, provenance.
 - Source cards and best-effort OpenAlex/Crossref/arXiv broker, plus manual source endpoint.
 - React/Vite frontend: quick capture, conversation, sticky composer, sessions, atlas tree, inspector, map impact, sources, search, settings.
-- Mobile-first/PWA support: manifest, icon, generated service worker, bottom nav, safe-area CSS, 16px inputs.
+- Mobile-first/PWA support: manifest, icon, generated service worker, compact chat header, composer-only bottom area, safe-area CSS, 16px inputs.
 - Exports: session markdown, map markdown, atlas JSON.
 - Learning-fit report and feedback endpoint.
 - Deployment scripts/docs: dev, build, run, migrate, smoke, backup, Tailscale Serve, systemd.
@@ -74,8 +74,8 @@ The app binds to localhost by default. Do not use Funnel for this private app.
 
 ## Adapter Status
 
-- Fake adapter: complete and default.
-- Codex CLI adapter: implemented and healthchecked at runtime; falls back to fake if unavailable.
+- Fake adapter: test-only; requires `ATLAS_ALLOW_FAKE_FOR_TESTS=true`.
+- Codex CLI adapter: default runtime provider; model failures return structured errors and do not create fake assistant turns.
 - OpenAI Responses adapter: placeholder only, disabled by default.
 
 ## Acceptance Criteria Status
@@ -96,7 +96,7 @@ The app binds to localhost by default. Do not use Funnel for this private app.
 14. Both sessions can touch overarching atlas: complete through shared workspace/maps.
 15. Search works: complete.
 16. Export works: complete.
-17. App works with fake LLM adapter: complete.
+17. App works with fake LLM adapter: complete for tests/fixtures only.
 18. App attempts Codex adapter if configured: complete.
 19. Missing Codex does not crash app: complete through fallback.
 20. Mobile layout works at narrow width: implemented via responsive CSS; not browser-screenshot verified.
@@ -111,7 +111,9 @@ The app binds to localhost by default. Do not use Funnel for this private app.
 
 - SSE is deferred; v0 uses polling/refetch and persisted events.
 - Core pipeline runs synchronously for the first reply; queue abstraction exists for later background extraction/research.
-- Source search is best-effort and only runs for explicit research/source/current/latest/citation requests to avoid latency and accidental fake research claims.
+- Source search is best-effort and only runs for explicit research/source/current/latest/citation requests to avoid latency and accidental fabricated research claims.
+- The runtime no longer falls back to test-adapter answers.
+- The mobile chat surface was corrected after screenshot review: no onboarding essay, no provider banner, no primary mode dropdown, no persistent bottom tab bar on the chat screen, and no assistant identity labeled as Atlas.
 - Mobile/desktop layouts were build-verified, not screenshot-verified in Safari.
 - Manual patch apply/reject/undo status endpoints exist, but full inverse-patch rollback is not implemented in v0.
 

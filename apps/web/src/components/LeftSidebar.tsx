@@ -26,7 +26,7 @@ export default function LeftSidebar() {
     <aside className="left-sidebar">
       <div className="brand">
         <span className="brand-mark" />
-        <strong>Cognitive Atlas</strong>
+        <strong>Chats</strong>
       </div>
       <button className="primary-action" onClick={() => create.mutate()}>
         <Plus size={18} /> New Thought
@@ -39,10 +39,9 @@ export default function LeftSidebar() {
         <SessionList sessions={sessions.data || []} />
       </section>
       <section>
-        <h2>Atlas</h2>
+        <h2>Memory</h2>
         <AtlasTree tree={atlas.data} />
       </section>
     </aside>
   );
 }
-

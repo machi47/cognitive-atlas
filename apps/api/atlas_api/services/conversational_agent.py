@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from atlas_api.llm.base import LlmAdapter
+from atlas_api.llm.schemas import load_schema
+from atlas_api.errors import LlmMalformedOutputError
 from atlas_api.models.llm import DiscussionReply, LlmJsonRequest
 
 
@@ -10,15 +12,13 @@ class ConversationalAgent:
 
     async def reply(self, context: str, mode: str) -> DiscussionReply:
         result = await self.llm.complete_json(
-            LlmJsonRequest(task="discussion_reply", prompt=context, schema_name="discussion_reply", metadata={"mode": mode})
+            LlmJsonRequest(task="discussion_reply", prompt=context, schema_name="discussion_reply", metadata={"mode": mode}),
+            schema=load_schema("discussion_reply"),
         )
         try:
             return DiscussionReply.model_validate(result.data)
         except Exception:
-            text = result.data.get("message") if isinstance(result.data, dict) else None
-            return DiscussionReply(
-                message=text or "I can work with that. The useful next move is to keep the thought intact, then isolate the core claim and the uncertainty without forcing a full outline yet.",
-                response_mode=mode,
-                uncertainty_notes=["Provider returned malformed structured output."],
+            raise LlmMalformedOutputError(
+                "Discussion model returned malformed output",
+                {"provider": self.llm.provider_name, "task": "discussion_reply", "data": result.data},
             )
-
