@@ -13,7 +13,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    app_name: str = "Learning Chat"
+    app_name: str = "Research Partner"
     host: str = Field(default="127.0.0.1", alias="ATLAS_HOST")
     port: int = Field(default=8787, alias="ATLAS_PORT")
     data_dir: Path = Field(default=Path("./data"), alias="ATLAS_DATA_DIR")

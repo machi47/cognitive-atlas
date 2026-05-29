@@ -36,7 +36,8 @@ class TurnArtifactsSummary(ApiModel):
 class TurnResponse(ApiModel):
     session: SessionOut
     user_turn: TurnOut
-    assistant_turn: TurnOut
+    assistant_turn: TurnOut | None = None
+    model_error: dict[str, Any] | None = None
+    learning_delta_summary: dict[str, Any] = Field(default_factory=dict)
     processing_state: ProcessingState
     artifacts_summary: TurnArtifactsSummary
-

@@ -34,6 +34,13 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   return parse<T>(response);
 }
 
+export async function apiDelete<T>(path: string): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: "DELETE"
+  });
+  return parse<T>(response);
+}
+
 async function parse<T>(response: Response): Promise<T> {
   const contentType = response.headers.get("content-type") || "";
   const data = contentType.includes("application/json") ? await response.json() : await response.text();
@@ -43,4 +50,3 @@ async function parse<T>(response: Response): Promise<T> {
   }
   return data as T;
 }
-

@@ -10,12 +10,30 @@
     display: none;
   }
 
+  .inspector-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px 12px 0 0;
+    bottom: 0;
+    display: block;
+    left: 0;
+    max-height: 78dvh;
+    min-height: auto;
+    overflow: auto;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    position: fixed;
+    right: 0;
+    z-index: 25;
+  }
+
   .main-plane {
     min-height: 100dvh;
     max-height: 100dvh;
+    overflow: hidden;
   }
 
   .conversation-scroll {
+    gap: 0.85rem;
     padding: 0.85rem;
   }
 
@@ -24,7 +42,7 @@
     position: sticky;
     top: 0;
     z-index: 4;
-    background: var(--bg);
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
   }
 
   .session-header h1 {
@@ -41,16 +59,26 @@
     display: inline-flex;
   }
 
+  .desktop-only {
+    display: none;
+  }
+
   .message {
+    border-radius: 18px;
     max-width: 100%;
     width: 100%;
+  }
+
+  .message.user {
+    width: auto;
+    max-width: 92%;
   }
 
   .message header {
     font-size: 0.72rem;
   }
 
-  .message p {
+  .message-body {
     font-size: 0.98rem;
   }
 
@@ -61,27 +89,80 @@
   .composer {
     bottom: 0;
     left: 0;
-    padding: 0.65rem;
+    padding: 0.55rem 0.65rem calc(0.65rem + env(safe-area-inset-bottom));
     position: sticky;
     right: 0;
   }
 
+  .composer-box {
+    border-radius: 22px;
+    padding: 0.45rem;
+  }
+
   .composer-actions {
-    display: grid;
-    grid-template-columns: 44px 44px minmax(0, 1fr);
-    justify-content: stretch;
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
   }
 
   .send-button {
-    flex: 1;
-    width: 100%;
+    flex: 0 0 auto;
+    width: auto;
   }
 
   .quick-capture,
   .page-panel,
   .settings-panel {
+    height: 100dvh;
     margin: 0;
-    padding: 1rem;
+    padding: 1rem 1rem calc(1.25rem + env(safe-area-inset-bottom));
+  }
+
+  .page-header-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .memory-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .memory-tree-panel,
+  .memory-detail-panel {
+    padding: 0.75rem;
+  }
+
+  .split-band {
+    grid-template-columns: 1fr;
+  }
+
+  .thread-row {
+    grid-template-columns: 1fr;
+  }
+
+  .workbench-hero,
+  .learning-thread > header,
+  .sensemaking-grid,
+  .thread-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .workbench-stat-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .section-heading {
+    align-items: start;
+    display: grid;
+  }
+
+  .section-heading small {
+    text-align: left;
+  }
+
+  .learning-thread header small {
+    white-space: normal;
   }
 
   .quick-capture h1 {

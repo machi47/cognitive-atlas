@@ -10,7 +10,7 @@ router = APIRouter()
 @router.get("/health")
 async def health(request: Request) -> dict:
     provider = await request.app.state.llm_adapter.healthcheck()
-    return {"ok": True, "app": "Learning Chat", "provider": provider.model_dump()}
+    return {"ok": True, "app": "Research Partner", "provider": provider.model_dump()}
 
 
 @router.get("/config/public")

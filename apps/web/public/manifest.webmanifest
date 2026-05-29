@@ -1,11 +1,11 @@
 {
-  "name": "Learning Chat",
-  "short_name": "Chat",
+  "name": "Research Partner",
+  "short_name": "Research",
   "display": "standalone",
   "start_url": "/",
   "scope": "/",
-  "background_color": "#f8fafc",
-  "theme_color": "#0f766e",
+  "background_color": "#f6f7f9",
+  "theme_color": "#f6f7f9",
   "icons": [
     {
       "src": "/icons/icon.svg",

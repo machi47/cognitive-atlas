@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiPost } from "./client";
+import { apiDelete, apiGet, apiPatch, apiPost } from "./client";
 import type { Session, Turn, TurnResponse } from "./types";
 
 export function listSessions() {
@@ -21,6 +21,10 @@ export function archiveSession(sessionId: string) {
   return apiPost<Session>(`/sessions/${sessionId}/archive`);
 }
 
+export function deleteSession(sessionId: string) {
+  return apiDelete<{ ok: boolean; deleted_session_id: string }>(`/sessions/${sessionId}`);
+}
+
 export function forkSession(sessionId: string) {
   return apiPost<Session>(`/sessions/${sessionId}/fork`);
 }
@@ -32,4 +36,3 @@ export function listTurns(sessionId: string) {
 export function submitTurn(sessionId: string, content: string, mode: string) {
   return apiPost<TurnResponse>(`/sessions/${sessionId}/turns`, { content, mode });
 }
-

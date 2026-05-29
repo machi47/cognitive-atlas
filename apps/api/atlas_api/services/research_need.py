@@ -23,6 +23,7 @@ class ResearchNeedDetector:
             ]
         )
         needs = explicit and frontier
+        source_need = frontier or needs
         return {
             "needs_research": needs,
             "freshness_required": explicit and ("latest" in lower or "current" in lower or "recent" in lower),
@@ -30,4 +31,5 @@ class ResearchNeedDetector:
             "query_intents": topics,
             "source_types": ["openalex", "crossref", "arxiv"] if needs else [],
             "priority": 0.75 if needs else 0,
+            "source_needs": topics if source_need else [],
         }

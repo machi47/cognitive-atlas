@@ -2,18 +2,188 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "PostTurnExtraction",
   "type": "object",
-  "required": ["topics", "claims", "node_candidates", "edge_candidates", "open_questions", "tensions", "analogies", "latent_bridges", "source_needs", "forbidden_user_state_claims", "notes"],
+  "required": [
+    "topics",
+    "claims",
+    "node_candidates",
+    "edge_candidates",
+    "open_questions",
+    "tensions",
+    "analogies",
+    "latent_bridges",
+    "source_needs",
+    "forbidden_user_state_claims",
+    "notes"
+  ],
   "properties": {
-    "topics": {"type": "array", "items": {"type": "string"}},
-    "claims": {"type": "array", "items": {"type": "object"}},
-    "node_candidates": {"type": "array", "items": {"type": "object"}},
-    "edge_candidates": {"type": "array", "items": {"type": "object"}},
-    "open_questions": {"type": "array", "items": {"type": "object"}},
-    "tensions": {"type": "array", "items": {"type": "object"}},
-    "analogies": {"type": "array", "items": {"type": "object"}},
-    "latent_bridges": {"type": "array", "items": {"type": "object"}},
-    "source_needs": {"type": "array", "items": {"type": "string"}},
-    "forbidden_user_state_claims": {"type": "array", "items": {"type": "string"}},
+    "topics": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["text", "claim_type", "epistemic_status", "confidence", "source_ids"],
+        "properties": {
+          "text": {"type": "string"},
+          "claim_type": {"type": "string"},
+          "epistemic_status": {"type": "string"},
+          "confidence": {"type": "number"},
+          "source_ids": {"type": "array", "items": {"type": "string"}}
+        },
+        "additionalProperties": false
+      }
+    },
+    "node_candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "label",
+          "description",
+          "node_type",
+          "epistemic_status",
+          "confidence",
+          "local_salience",
+          "global_salience",
+          "novelty_score",
+          "bridge_potential",
+          "metadata"
+        ],
+        "properties": {
+          "label": {"type": "string"},
+          "description": {"type": ["string", "null"]},
+          "node_type": {"type": "string"},
+          "epistemic_status": {"type": "string"},
+          "confidence": {"type": "number"},
+          "local_salience": {"type": "number"},
+          "global_salience": {"type": "number"},
+          "novelty_score": {"type": "number"},
+          "bridge_potential": {"type": "number"},
+          "metadata": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "edge_candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "from_label",
+          "to_label",
+          "relation_type",
+          "label",
+          "description",
+          "epistemic_status",
+          "confidence",
+          "salience"
+        ],
+        "properties": {
+          "from_label": {"type": "string"},
+          "to_label": {"type": "string"},
+          "relation_type": {"type": "string"},
+          "label": {"type": ["string", "null"]},
+          "description": {"type": ["string", "null"]},
+          "epistemic_status": {"type": "string"},
+          "confidence": {"type": "number"},
+          "salience": {"type": "number"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["question", "status", "priority"],
+        "properties": {
+          "question": {"type": "string"},
+          "status": {"type": "string"},
+          "priority": {"type": "number"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "tensions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["title", "description", "status", "node_labels", "confidence"],
+        "properties": {
+          "title": {"type": "string"},
+          "description": {"type": "string"},
+          "status": {"type": "string"},
+          "node_labels": {"type": "array", "items": {"type": "string"}},
+          "confidence": {"type": "number"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "analogies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source_concept", "target_concept", "useful_because", "breaks_at", "status", "confidence"],
+        "properties": {
+          "source_concept": {"type": "string"},
+          "target_concept": {"type": "string"},
+          "useful_because": {"type": ["string", "null"]},
+          "breaks_at": {"type": ["string", "null"]},
+          "status": {"type": "string"},
+          "confidence": {"type": "number"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "latent_bridges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "from_label",
+          "to_label",
+          "bridge_type",
+          "reason",
+          "confidence",
+          "status",
+          "discovered_by",
+          "evidence_artifact_ids",
+          "metadata"
+        ],
+        "properties": {
+          "from_label": {"type": "string"},
+          "to_label": {"type": "string"},
+          "bridge_type": {"type": "string"},
+          "reason": {"type": "string"},
+          "confidence": {"type": "number"},
+          "status": {"type": "string"},
+          "discovered_by": {"type": "string"},
+          "evidence_artifact_ids": {"type": "array", "items": {"type": "string"}},
+          "metadata": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "source_needs": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "forbidden_user_state_claims": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
     "notes": {"type": "string"}
   },
   "additionalProperties": false

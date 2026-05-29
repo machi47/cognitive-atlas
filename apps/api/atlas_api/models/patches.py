@@ -71,6 +71,7 @@ class LatentBridgeCandidate(ApiModel):
     status: str = "suggested"
     discovered_by: str = "deterministic"
     evidence_artifact_ids: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class PostTurnExtraction(ApiModel):
@@ -125,4 +126,3 @@ class MapPatchOut(ApiModel):
     applied_at: str | None = None
     rejected_at: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
-

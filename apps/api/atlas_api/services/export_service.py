@@ -25,7 +25,7 @@ class ExportService:
             "",
         ]
         for turn in turns:
-            speaker = "User" if turn.role == "user" else "Assistant"
+            speaker = "User" if turn.role == "user" else "Research Partner"
             lines.extend([f"### {speaker} - {turn.created_at}", "", turn.content, ""])
             artifacts = await self.repo.list_artifacts_for_turn(turn.id)
             if artifacts:
@@ -60,4 +60,3 @@ class ExportService:
         maps = [item.model_dump() for item in await self.repo.list_maps(workspace_id)]
         sources = [item.model_dump() for item in await self.repo.list_sources(workspace_id, limit=500)]
         return json.dumps({"version": 1, "workspace_id": workspace_id, "tree": tree.model_dump(), "maps": maps, "sources": sources}, indent=2)
-

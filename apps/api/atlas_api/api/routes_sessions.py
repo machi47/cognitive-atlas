@@ -20,7 +20,7 @@ async def list_sessions(request: Request, include_archived: bool = False) -> lis
 async def create_session(request: Request, payload: SessionCreate) -> SessionOut:
     repo = Repository(request.app.state.db)
     workspace_id = await repo.ensure_default_workspace()
-    return await repo.create_session(workspace_id, payload.title or "New Thought", payload.mode, payload.metadata)
+    return await repo.create_session(workspace_id, payload.title or "New chat", payload.mode, payload.metadata)
 
 
 @router.get("/sessions/{session_id}", response_model=SessionOut)
@@ -55,3 +55,10 @@ async def fork_session(request: Request, session_id: str) -> SessionOut:
         raise NotFoundError("Session not found")
     return session
 
+
+@router.delete("/sessions/{session_id}")
+async def delete_session(request: Request, session_id: str) -> dict:
+    deleted = await Repository(request.app.state.db).delete_session(session_id)
+    if not deleted:
+        raise NotFoundError("Session not found")
+    return {"ok": True, "deleted_session_id": session_id}

@@ -20,7 +20,7 @@ export default function AppShell({ children }: PropsWithChildren) {
   }, [setInspectorOpen]);
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${inspectorOpen ? " inspector-open" : ""}`}>
       <LeftSidebar />
       <main className="main-plane">
         {children}

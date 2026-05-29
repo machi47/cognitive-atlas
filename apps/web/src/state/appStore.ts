@@ -21,7 +21,7 @@ type AppStore = {
 
 export const useAppStore = create<AppStore>((set) => ({
   currentSessionId: window.localStorage.getItem("atlas.currentSessionId"),
-  inspectorOpen: window.innerWidth >= 960,
+  inspectorOpen: false,
   selectedMapId: null,
   mobileTab: "talk",
   theme: "system",
@@ -39,4 +39,3 @@ export const useAppStore = create<AppStore>((set) => ({
   setTheme: (theme) => set({ theme }),
   setDebugMode: (debug) => set({ debugMode: debug })
 }));
-

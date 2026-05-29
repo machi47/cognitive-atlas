@@ -23,7 +23,7 @@ class CodexCliAdapter(LlmAdapter):
 
     async def healthcheck(self) -> LlmHealth:
         if not shutil.which(self.settings.codex_bin):
-            return LlmHealth(provider_name=self.provider_name, available=False, message="Codex CLI not found; app still works in fake mode")
+            return LlmHealth(provider_name=self.provider_name, available=False, message="Codex CLI not found", details={"reason": "missing_binary", "next_commands": ["codex --version", "codex login"]})
         try:
             proc = await asyncio.create_subprocess_exec(
                 self.settings.codex_bin,
@@ -89,6 +89,7 @@ class CodexCliAdapter(LlmAdapter):
             self.settings.codex_bin,
             "exec",
             "--skip-git-repo-check",
+            "--ephemeral",
             "--json",
             "--sandbox",
             "read-only",

@@ -14,7 +14,7 @@ def estimate_tokens(text: str) -> int:
     return max(1, len(text.split()) * 4 // 3)
 
 
-def first_sentence_title(text: str, fallback: str = "New Thought") -> str:
+def first_sentence_title(text: str, fallback: str = "New chat") -> str:
     cleaned = normalize_whitespace(text)
     if not cleaned:
         return fallback
@@ -34,6 +34,10 @@ def parse_command(text: str) -> tuple[str | None, str]:
 
 def keywords_title(text: str) -> str:
     cleaned = normalize_whitespace(text).lower()
+    if "substratecad" in cleaned or "substrate cad" in cleaned:
+        return "substrateCAD"
+    if "trace impedance" in cleaned or "signal integrity" in cleaned or "package substrate" in cleaned or "soc interconnect" in cleaned:
+        return "Physical Signal Integrity"
     if "analog" in cleaned or "compute-in-memory" in cleaned or "compute in memory" in cleaned:
         return "Analog Compute"
     if "agent" in cleaned or "conversation plane" in cleaned:
@@ -63,4 +67,3 @@ STOPWORDS = {
     "make",
     "think",
 }
-

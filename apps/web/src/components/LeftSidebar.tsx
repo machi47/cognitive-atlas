@@ -29,7 +29,7 @@ export default function LeftSidebar() {
         <strong>Chats</strong>
       </div>
       <button className="primary-action" onClick={() => create.mutate()}>
-        <Plus size={18} /> New Thought
+        <Plus size={18} /> New chat
       </button>
       <button className="ghost-action" onClick={() => window.dispatchEvent(new CustomEvent("atlas:search"))}>
         <Search size={16} /> Search

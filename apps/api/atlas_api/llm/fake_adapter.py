@@ -24,7 +24,7 @@ class FakeLlmAdapter(LlmAdapter):
                 "response_mode": request.metadata.get("mode", "discuss"),
                 "source_ids_used": [],
                 "suggested_followups": self._followups(prompt),
-                "uncertainty_notes": ["Fake adapter output; use Codex/research mode for source-grounded claims."],
+                "uncertainty_notes": [],
                 "should_research_more": self._needs_research(prompt),
             }
         elif "extraction" in task:
@@ -69,6 +69,13 @@ class FakeLlmAdapter(LlmAdapter):
                 "while analog compute can make dense MAC-like work cheap near the data. The catch is exactly the ADC/DAC boundary: if conversion, "
                 "control, calibration, or precision overhead happens too often, it can erase the win. The useful question is where the analog block sits "
                 "so conversion overhead is paid rarely enough to matter."
+            )
+        if "pcb" in lower or "trace impedance" in lower or "soc interconnect" in lower or "package substrate" in lower:
+            return (
+                "That relation is plausible, but I would keep it tentative. PCB trace impedance, package substrate interconnects, and SoC interconnects all sit in "
+                "the same broad problem family: geometry plus materials plus constrained physical signal behavior. The bridge is useful for substrateCAD because a "
+                "fabrication-aware CAD system needs to represent layered media, conductor geometry, material stackups, and verification rules without assuming the "
+                "PCB, package, and on-chip cases are identical."
             )
         if "agent" in lower or "conversation plane" in lower or "map forest" in lower:
             return (
@@ -202,7 +209,7 @@ class FakeLlmAdapter(LlmAdapter):
         return {
             "topics": [topic],
             "claims": [{"text": normalize_whitespace(prompt)[:240], "claim_type": "raw_thought", "epistemic_status": "user_asserted", "confidence": 0.45, "source_ids": []}],
-            "node_candidates": [{"label": topic, "description": "Topic inferred from a messy captured thought.", "node_type": "concept", "epistemic_status": "unverified", "confidence": 0.45, "local_salience": 0.5, "global_salience": 0.2, "novelty_score": 0.4, "bridge_potential": 0.3}],
+            "node_candidates": [{"label": topic, "description": "Topic inferred from the current turn.", "node_type": "concept", "epistemic_status": "unverified", "confidence": 0.45, "local_salience": 0.5, "global_salience": 0.2, "novelty_score": 0.4, "bridge_potential": 0.3}],
             "edge_candidates": [],
             "open_questions": [{"question": f"What is the sharpest unresolved question inside {topic}?", "status": "open", "priority": 0.4}],
             "tensions": [],
@@ -219,5 +226,8 @@ class FakeLlmAdapter(LlmAdapter):
             return prompt.split(marker, 1)[1].strip()
         marker = "User:"
         if marker in prompt:
-            return prompt.split(marker, 1)[1].split("\nAssistant:", 1)[0].strip()
+            value = prompt.split(marker, 1)[1]
+            for next_marker in ["\nResearch Partner:", "\nAssistant:"]:
+                value = value.split(next_marker, 1)[0]
+            return value.strip()
         return prompt

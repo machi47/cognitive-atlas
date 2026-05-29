@@ -11,9 +11,8 @@ export default function TalkPage() {
   const params = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const storedSessionId = useAppStore((state) => state.currentSessionId);
   const setCurrentSessionId = useAppStore((state) => state.setCurrentSessionId);
-  const sessionId = params.sessionId || storedSessionId;
+  const sessionId = params.sessionId || null;
   const session = useQuery({ queryKey: ["session", sessionId], queryFn: () => getSession(sessionId!), enabled: Boolean(sessionId) });
   const create = useMutation({
     mutationFn: () => createSession(),
@@ -39,4 +38,3 @@ export default function TalkPage() {
   if (!session.data) return <QuickCapture />;
   return <ConversationView session={session.data} />;
 }
-

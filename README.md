@@ -1,19 +1,60 @@
-# Learning Chat
+# Research Partner
 
-Learning Chat is a private, local-first conversation-centered learning kernel. It is for messy associative thinking: the main chat stays compact and readable while the backend extracts topics, claims, source needs, open questions, map patches, and provenance into optional memory/debug surfaces.
+Research Partner is a local-first multi-conversation learning system.
 
-It is not a generic notes app, chatbot wrapper, public service, or graph-first knowledge toy.
+The product model is:
 
-## Quick Start
+```text
+separate chats
+→ shared evolving technical topology
+→ source/question/tension/bridge ledger
+→ conversation-derived Learn Workbench
+→ selective retrieval back into future chats
+```
+
+Chats protect local train of thought. The Learn Workbench accumulates technical concepts, constraints, open questions, tensions, source needs, and bridge candidates across all chats.
+
+## Standalone Agent Machine
+
+Use this when the app should run as its own service on another machine with Codex OAuth already present.
+
+```sh
+git clone https://github.com/machi47/cognitive-atlas.git
+cd cognitive-atlas
+./scripts/run_standalone.sh
+```
+
+Default service URL:
+
+```text
+http://<agent-machine-ip>:8788
+```
+
+The standalone harness:
+
+- installs Python and web dependencies if needed
+- builds the web bundle
+- runs database migrations
+- starts FastAPI serving the app and API
+- uses the local Codex CLI OAuth session
+- keeps runtime data under gitignored `./data`
+- refuses to run if Codex CLI is missing or logged out
+
+See [Agent Machine Harness](docs/AGENT_MACHINE_HARNESS.md).
+
+## Local Development
 
 ```sh
 ./scripts/install.sh
 ./scripts/dev.sh
 ```
 
-- API: `http://127.0.0.1:8787`
-- Vite app: `http://127.0.0.1:5173`
-- Default LLM provider: Codex CLI
+Development URLs:
+
+```text
+API:  http://127.0.0.1:8787
+Web:  http://127.0.0.1:5173
+```
 
 ## Production Local
 
@@ -22,30 +63,20 @@ It is not a generic notes app, chatbot wrapper, public service, or graph-first k
 ./scripts/run_api.sh
 ```
 
-The FastAPI backend serves the built frontend if `apps/web/dist` exists.
+The API serves `apps/web/dist` directly when the bundle exists.
 
-## Tailscale
+## Codex Runtime
 
-Run the app on localhost, then expose it privately:
-
-```sh
-./scripts/tailscale_serve.sh
-tailscale serve localhost:8787
-```
-
-Do not use Funnel for this app.
-
-## Codex CLI Adapter
-
-Codex mode is the default runtime:
+Codex mode is the default runtime. It uses the local Codex CLI login, not an OpenAI API key.
 
 ```sh
-./scripts/run_api.sh
+codex login status
+./scripts/run_standalone.sh
 ```
 
-If Codex is missing, unauthenticated, times out, exits nonzero, or returns malformed structured output, the turn fails with a structured error. The app does not fabricate an assistant answer.
+If Codex is missing, unauthenticated, times out, exits nonzero, or returns malformed structured output, the app returns a structured model error and preserves the user turn. It does not fabricate a runtime answer.
 
-Fake mode is reserved for tests:
+Fake mode is reserved for tests only:
 
 ```sh
 ATLAS_LLM_PROVIDER=fake ATLAS_ALLOW_FAKE_FOR_TESTS=true ./scripts/smoke_test.sh
@@ -53,34 +84,56 @@ ATLAS_LLM_PROVIDER=fake ATLAS_ALLOW_FAKE_FOR_TESTS=true ./scripts/smoke_test.sh
 
 ## Environment
 
-Copy `.env.example` to `.env` if you want local overrides. Important values:
+Copy `.env.example` to `.env` for local overrides.
 
-- `ATLAS_DATA_DIR=./data`
-- `ATLAS_LLM_PROVIDER=codex|openai|fake`
-- `ATLAS_ALLOW_FAKE_FOR_TESTS=false`
-- `APP_ACCESS_TOKEN=` optional bearer gate
-- `ATLAS_DEBUG=false`
-- `ATLAS_STORE_LLM_PROMPTS=false`
+Important values:
 
-## Data
+```sh
+ATLAS_DATA_DIR=./data
+ATLAS_LLM_PROVIDER=codex
+ATLAS_ALLOW_FAKE_FOR_TESTS=false
+ATLAS_HOST=0.0.0.0
+ATLAS_PORT=8788
+APP_ACCESS_TOKEN=
+ATLAS_DEBUG=false
+ATLAS_STORE_LLM_PROMPTS=false
+```
 
-Runtime state lives under `./data` and is gitignored. Back up the database with:
+## Private Data
+
+Runtime state is local and gitignored:
+
+```text
+data/cognitive_atlas.db
+data/logs/
+data/codex_runs/
+data/artifacts/
+data/exports/
+```
+
+Do not commit those files. They can contain chats, memories, source cards, model traces, and local artifacts.
+
+Back up the runtime database with:
 
 ```sh
 ./scripts/backup.sh
 ```
 
-## Tests
+## Verification
 
 ```sh
-./scripts/test.sh
-./scripts/smoke_test.sh
+./scripts/prove_learning_loop.sh
+./scripts/prove_real_codex_learning_turn.sh
+.venv/bin/pytest apps/api/tests -q
+pnpm --dir apps/web build
+pnpm --dir apps/web test
 ```
 
-## GitHub
+## Tailnet
 
-After verification:
+Keep the service private to your own network/tailnet. Do not use public Funnel for this app.
 
 ```sh
-./scripts/create_github_repo.sh
+./scripts/run_standalone.sh
+tailscale serve localhost:8788
 ```

@@ -51,11 +51,49 @@ class Repository:
 
         return await self.db.transaction(tx)
 
-    async def create_session(self, workspace_id: str, title: str = "New Thought", mode: str = "discuss", metadata: dict[str, Any] | None = None) -> SessionOut:
+    async def reset_workspace_data(self, workspace_id: str = DEFAULT_WORKSPACE_ID) -> dict[str, int]:
+        tables = [
+            "sessions_fts",
+            "turns_fts",
+            "concept_nodes_fts",
+            "claims_fts",
+            "source_cards_fts",
+            "map_patches",
+            "research_tasks",
+            "source_cards",
+            "latent_bridges",
+            "analogies",
+            "tensions",
+            "open_questions",
+            "claims",
+            "relation_edges",
+            "concept_nodes",
+            "topic_maps",
+            "domains",
+            "artifacts",
+            "turns",
+            "sessions",
+            "events",
+        ]
+        now = utc_now()
+
+        async def tx(conn: aiosqlite.Connection) -> dict[str, int]:
+            counts: dict[str, int] = {}
+            for table in tables:
+                before = await (await conn.execute(f"select count(*) as count from {table}")).fetchone()
+                await conn.execute(f"delete from {table}")
+                counts[table] = int(before["count"] if before else 0)
+            await conn.execute("update workspaces set updated_at = ? where id = ?", (now, workspace_id))
+            await self._insert_event_conn(conn, workspace_id, None, "dev_data_reset", "workspace", workspace_id, {"counts": counts})
+            return counts
+
+        return await self.db.transaction(tx)
+
+    async def create_session(self, workspace_id: str, title: str = "New chat", mode: str = "discuss", metadata: dict[str, Any] | None = None) -> SessionOut:
         now = utc_now()
         session_id = new_id("ses")
         metadata = metadata or {}
-        response_budget = {"min_words": 120, "max_words": 250}
+        response_budget = {"style": "high_bandwidth_technical_partner", "depth": "substantial"}
 
         async def tx(conn: aiosqlite.Connection) -> SessionOut:
             await conn.execute(
@@ -124,6 +162,21 @@ class Repository:
             existing.mode,
             {"forked_from_session_id": existing.id},
         )
+
+    async def delete_session(self, session_id: str) -> bool:
+        existing = await self.get_session(session_id)
+        if not existing:
+            return False
+
+        async def tx(conn: aiosqlite.Connection) -> bool:
+            await conn.execute("delete from sessions_fts where session_id = ?", (session_id,))
+            await conn.execute("delete from turns_fts where session_id = ?", (session_id,))
+            await conn.execute("delete from claims_fts where session_id = ?", (session_id,))
+            await conn.execute("delete from sessions where id = ?", (session_id,))
+            await self._insert_event_conn(conn, existing.workspace_id, None, "session_deleted", "session", session_id, {"title": existing.title})
+            return True
+
+        return await self.db.transaction(tx)
 
     async def create_turn(
         self,
@@ -240,6 +293,7 @@ class Repository:
         row = await (await conn.execute("select * from concept_nodes where map_id = ? and lower(label) = lower(?)", (map_id, node["label"]))).fetchone()
         if row:
             node_id = row["id"]
+            merged_provenance = self._merge_provenance(loads(row["provenance_json"], []), provenance)
             await conn.execute(
                 """
                 update concept_nodes
@@ -248,6 +302,7 @@ class Repository:
                     global_salience = max(global_salience, ?),
                     novelty_score = max(novelty_score, ?),
                     bridge_potential = max(bridge_potential, ?),
+                    provenance_json = ?,
                     updated_at = ?
                 where id = ?
                 """,
@@ -256,6 +311,7 @@ class Repository:
                     node.get("global_salience", 0.2),
                     node.get("novelty_score", 0.2),
                     node.get("bridge_potential", 0.2),
+                    dumps(merged_provenance),
                     now,
                     node_id,
                 ),
@@ -291,6 +347,13 @@ class Repository:
         )
         await fts.index_node(conn, node_id, map_id, node["label"], node.get("description"))
         return node_id
+
+    async def list_concept_labels(self, workspace_id: str, limit: int = 500) -> list[str]:
+        rows = await self.db.fetchall(
+            "select label from concept_nodes where workspace_id = ? order by global_salience desc, updated_at desc limit ?",
+            (workspace_id, limit),
+        )
+        return [row["label"] for row in rows]
 
     async def insert_map_patch(self, workspace_id: str, session_id: str | None, turn_id: str | None, patch: dict[str, Any], status: str, risk_level: str) -> MapPatchOut:
         now = utc_now()
@@ -339,7 +402,7 @@ class Repository:
 
     async def apply_patch_to_map(self, workspace_id: str, session_id: str | None, turn_id: str | None, patch: dict[str, Any]) -> tuple[list[str], dict[str, int]]:
         provenance = patch.get("provenance", [])
-        counters = {"maps": 0, "nodes": 0, "edges": 0, "claims": 0, "questions": 0, "analogies": 0, "latent_bridges": 0}
+        counters = {"maps": 0, "nodes": 0, "edges": 0, "claims": 0, "questions": 0, "tensions": 0, "analogies": 0, "latent_bridges": 0}
 
         async def tx(conn: aiosqlite.Connection) -> tuple[list[str], dict[str, int]]:
             target_map_ids = list(patch.get("target_map_ids", []))
@@ -391,18 +454,47 @@ class Repository:
 
             primary_map_id = target_map_ids[0]
             label_to_id: dict[str, str] = {}
+
+            async def node_id_for_label(label: str) -> str:
+                key = label.lower()
+                if key in label_to_id:
+                    return label_to_id[key]
+                primary = await (await conn.execute("select id from concept_nodes where map_id = ? and lower(label) = lower(?)", (primary_map_id, label))).fetchone()
+                if primary:
+                    label_to_id[key] = primary["id"]
+                    return primary["id"]
+                existing = await (
+                    await conn.execute(
+                        """
+                        select id from concept_nodes
+                        where workspace_id = ? and lower(label) = lower(?)
+                        order by global_salience desc, updated_at desc
+                        limit 1
+                        """,
+                        (workspace_id, label),
+                    )
+                ).fetchone()
+                if existing:
+                    label_to_id[key] = existing["id"]
+                    return existing["id"]
+                node_id = await self.upsert_node(
+                    conn,
+                    workspace_id,
+                    primary_map_id,
+                    {"label": label, "node_type": "concept", "epistemic_status": "needs_research", "confidence": 0.4},
+                    provenance,
+                )
+                label_to_id[key] = node_id
+                return node_id
+
             for node in patch.get("add_nodes", []):
                 node_id = await self.upsert_node(conn, workspace_id, primary_map_id, node, provenance)
                 label_to_id[node["label"].lower()] = node_id
                 counters["nodes"] += 1
 
             for edge in patch.get("add_edges", []):
-                from_id = label_to_id.get(edge["from_label"].lower())
-                to_id = label_to_id.get(edge["to_label"].lower())
-                if not from_id:
-                    from_id = await self.upsert_node(conn, workspace_id, primary_map_id, {"label": edge["from_label"], "node_type": "concept", "epistemic_status": "unverified", "confidence": 0.4}, provenance)
-                if not to_id:
-                    to_id = await self.upsert_node(conn, workspace_id, primary_map_id, {"label": edge["to_label"], "node_type": "concept", "epistemic_status": "unverified", "confidence": 0.4}, provenance)
+                from_id = await node_id_for_label(edge["from_label"])
+                to_id = await node_id_for_label(edge["to_label"])
                 existing = await (
                     await conn.execute(
                         "select id from relation_edges where map_id = ? and from_node_id = ? and to_node_id = ? and relation_type = ?",
@@ -410,6 +502,19 @@ class Repository:
                     )
                 ).fetchone()
                 if existing:
+                    existing_row = await (await conn.execute("select provenance_json from relation_edges where id = ?", (existing["id"],))).fetchone()
+                    merged_provenance = self._merge_provenance(loads(existing_row["provenance_json"], []), provenance) if existing_row else provenance
+                    await conn.execute(
+                        """
+                        update relation_edges
+                        set confidence = max(confidence, ?),
+                            salience = max(salience, ?),
+                            provenance_json = ?,
+                            updated_at = ?
+                        where id = ?
+                        """,
+                        (edge.get("confidence", 0.5), edge.get("salience", 0.4), dumps(merged_provenance), utc_now(), existing["id"]),
+                    )
                     continue
                 now = utc_now()
                 await conn.execute(
@@ -484,6 +589,56 @@ class Repository:
                 )
                 counters["questions"] += 1
 
+            for tension in patch.get("add_tensions", []):
+                title = tension.get("title")
+                description = tension.get("description")
+                if not title or not description:
+                    continue
+                node_ids = []
+                for label in tension.get("node_labels", []):
+                    node_ids.append(await node_id_for_label(label))
+                existing = await (
+                    await conn.execute(
+                        "select id, provenance_json from tensions where workspace_id = ? and lower(title) = lower(?)",
+                        (workspace_id, title),
+                    )
+                ).fetchone()
+                if existing:
+                    merged_provenance = self._merge_provenance(loads(existing["provenance_json"], []), provenance)
+                    await conn.execute(
+                        """
+                        update tensions
+                        set description = ?,
+                            status = ?,
+                            node_ids_json = ?,
+                            provenance_json = ?,
+                            updated_at = ?
+                        where id = ?
+                        """,
+                        (description, tension.get("status", "open"), dumps(node_ids), dumps(merged_provenance), utc_now(), existing["id"]),
+                    )
+                    continue
+                now = utc_now()
+                await conn.execute(
+                    """
+                    insert into tensions(id, workspace_id, map_id, title, description, status, created_at, updated_at, node_ids_json, claim_ids_json, provenance_json)
+                    values(?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', ?)
+                    """,
+                    (
+                        new_id("ten"),
+                        workspace_id,
+                        primary_map_id,
+                        title,
+                        description,
+                        tension.get("status", "open"),
+                        now,
+                        now,
+                        dumps(node_ids),
+                        dumps(provenance),
+                    ),
+                )
+                counters["tensions"] += 1
+
             for analogy in patch.get("add_analogies", []):
                 await conn.execute(
                     """
@@ -507,14 +662,38 @@ class Repository:
                 counters["analogies"] += 1
 
             for bridge in patch.get("add_latent_bridges", []):
-                from_id = label_to_id.get(bridge["from_label"].lower())
-                to_id = label_to_id.get(bridge["to_label"].lower())
+                from_id = await node_id_for_label(bridge["from_label"])
+                to_id = await node_id_for_label(bridge["to_label"])
                 if from_id and to_id and from_id != to_id:
+                    existing = await (
+                        await conn.execute(
+                            "select id, metadata_json from latent_bridges where workspace_id = ? and from_node_id = ? and to_node_id = ? and bridge_type = ?",
+                            (workspace_id, from_id, to_id, bridge.get("bridge_type", "bridges_to")),
+                        )
+                    ).fetchone()
+                    metadata = dict(bridge.get("metadata", {}))
+                    metadata["provenance"] = provenance
+                    if existing:
+                        existing_metadata = loads(existing["metadata_json"], {})
+                        metadata["provenance"] = self._merge_provenance(existing_metadata.get("provenance", []), provenance)
+                        await conn.execute(
+                            """
+                            update latent_bridges
+                            set reason = ?,
+                                confidence = max(confidence, ?),
+                                status = ?,
+                                updated_at = ?,
+                                metadata_json = ?
+                            where id = ?
+                            """,
+                            (bridge["reason"], bridge.get("confidence", 0.45), bridge.get("status", "suggested"), utc_now(), dumps({**existing_metadata, **metadata}), existing["id"]),
+                        )
+                        continue
                     now = utc_now()
                     await conn.execute(
                         """
                         insert into latent_bridges(id, workspace_id, from_node_id, to_node_id, bridge_type, reason, confidence, status, discovered_by, created_at, updated_at, evidence_artifact_ids_json, metadata_json)
-                        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '{}')
+                        values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             new_id("bridge"),
@@ -529,6 +708,7 @@ class Repository:
                             now,
                             now,
                             dumps(bridge.get("evidence_artifact_ids", [])),
+                            dumps(metadata),
                         ),
                     )
                     counters["latent_bridges"] += 1
@@ -604,10 +784,13 @@ class Repository:
         question_rows = await self.db.fetchall("select * from open_questions where map_id = ? order by priority desc, updated_at desc limit 50", (map_id,))
         bridge_rows = await self.db.fetchall(
             """
-            select b.*, nf.label as from_label, nt.label as to_label
+            select b.*, nf.label as from_label, nt.label as to_label,
+                   mf.title as from_map_title, mt.title as to_map_title
             from latent_bridges b
             join concept_nodes nf on nf.id = b.from_node_id
             join concept_nodes nt on nt.id = b.to_node_id
+            left join topic_maps mf on mf.id = nf.map_id
+            left join topic_maps mt on mt.id = nt.map_id
             where nf.map_id = ? or nt.map_id = ?
             order by b.confidence desc, b.updated_at desc
             limit 3
@@ -619,7 +802,7 @@ class Repository:
             nodes=[self._node_from_row(row) for row in node_rows],
             edges=[self._edge_from_row(row) for row in edge_rows],
             questions=[self._question_from_row(row) for row in question_rows],
-            latent_bridges=[{**row, "evidence_artifact_ids": loads(row["evidence_artifact_ids_json"], [])} for row in bridge_rows],
+            latent_bridges=[self._bridge_from_row(row) for row in bridge_rows],
         )
 
     async def create_source(self, workspace_id: str, source: SourceCardIn) -> SourceCardOut:
@@ -668,6 +851,77 @@ class Repository:
         row = await self.db.fetchone("select * from source_cards where id = ?", (source_id,))
         return self._source_from_row(row) if row else None
 
+    async def create_research_task(
+        self,
+        workspace_id: str,
+        session_id: str | None,
+        turn_id: str | None,
+        query: str,
+        task_type: str = "source_need",
+        status: str = "needed",
+        priority: float = 0.5,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        now = utc_now()
+        task_id = new_id("task")
+        metadata = metadata or {}
+
+        async def tx(conn: aiosqlite.Connection) -> dict[str, Any]:
+            await conn.execute(
+                """
+                insert into research_tasks(id, workspace_id, session_id, turn_id, query, task_type, status, priority, created_at, updated_at, result_artifact_id, metadata_json)
+                values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, ?)
+                """,
+                (task_id, workspace_id, session_id, turn_id, query, task_type, status, priority, now, now, dumps(metadata)),
+            )
+            await self._insert_event_conn(conn, workspace_id, session_id, "research_task_created", "research_task", task_id, {"query": query, "task_type": task_type, "status": status}, causation_id=turn_id)
+            return {
+                "id": task_id,
+                "workspace_id": workspace_id,
+                "session_id": session_id,
+                "turn_id": turn_id,
+                "query": query,
+                "task_type": task_type,
+                "status": status,
+                "priority": priority,
+                "created_at": now,
+                "updated_at": now,
+                "result_artifact_id": None,
+                "metadata": metadata,
+            }
+
+        return await self.db.transaction(tx)
+
+    async def list_research_tasks(self, workspace_id: str, status: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+        if status:
+            rows = await self.db.fetchall(
+                "select * from research_tasks where workspace_id = ? and status = ? order by priority desc, updated_at desc limit ?",
+                (workspace_id, status, limit),
+            )
+        else:
+            rows = await self.db.fetchall(
+                "select * from research_tasks where workspace_id = ? order by priority desc, updated_at desc limit ?",
+                (workspace_id, limit),
+            )
+        return [self._research_task_from_row(row) for row in rows]
+
+    async def update_bridge_status(self, bridge_id: str, status: str) -> dict[str, Any] | None:
+        await self.db.execute("update latent_bridges set status = ?, updated_at = ? where id = ?", (status, utc_now(), bridge_id))
+        row = await self.db.fetchone(
+            """
+            select b.*, nf.label as from_label, nt.label as to_label,
+                   sf.title as from_map_title, st.title as to_map_title
+            from latent_bridges b
+            join concept_nodes nf on nf.id = b.from_node_id
+            join concept_nodes nt on nt.id = b.to_node_id
+            left join topic_maps sf on sf.id = nf.map_id
+            left join topic_maps st on st.id = nt.map_id
+            where b.id = ?
+            """,
+            (bridge_id,),
+        )
+        return self._bridge_from_row(row) if row else None
+
     async def recent_events(self, workspace_id: str, limit: int = 50) -> list[EventOut]:
         rows = await self.db.fetchall("select * from events where workspace_id = ? order by created_at desc limit ?", (workspace_id, limit))
         return [self._event_from_row(row) for row in rows]
@@ -675,11 +929,11 @@ class Repository:
     async def search(self, workspace_id: str, query: str, limit: int = 25) -> dict[str, list[dict[str, Any]]]:
         safe_query = query.strip()
         if not safe_query:
-            return {"sessions": [], "turns": [], "maps": [], "claims": [], "sources": []}
+            return {"chats": [], "turns": [], "concepts": [], "claims": [], "questions": [], "bridges": [], "sources": []}
         like = f"%{safe_query}%"
-        sessions = await self.db.fetchall(
+        chats = await self.db.fetchall(
             """
-            select s.id, s.title, s.updated_at, 'session' as result_type
+            select s.id, s.title, s.status, s.updated_at, 'chat' as result_type
             from sessions s where s.workspace_id = ? and s.title like ?
             order by s.updated_at desc limit ?
             """,
@@ -694,19 +948,42 @@ class Repository:
             """,
             (workspace_id, like, limit),
         )
-        maps = await self.db.fetchall(
-            "select id, title, summary, updated_at, 'map' as result_type from topic_maps where workspace_id = ? and (title like ? or coalesce(summary, '') like ?) order by updated_at desc limit ?",
+        concepts = await self.db.fetchall(
+            """
+            select n.id, n.label, n.description, n.node_type, n.epistemic_status, n.updated_at,
+                   m.id as map_id, m.title as map_title, 'concept' as result_type
+            from concept_nodes n
+            join topic_maps m on m.id = n.map_id
+            where n.workspace_id = ? and (n.label like ? or coalesce(n.description, '') like ?)
+            order by n.global_salience desc, n.updated_at desc limit ?
+            """,
             (workspace_id, like, like, limit),
         )
         claims = await self.db.fetchall(
             "select id, text, updated_at, 'claim' as result_type from claims where workspace_id = ? and text like ? order by updated_at desc limit ?",
             (workspace_id, like, limit),
         )
+        questions = await self.db.fetchall(
+            "select id, session_id, map_id, question, status, priority, updated_at, 'question' as result_type from open_questions where workspace_id = ? and question like ? order by priority desc, updated_at desc limit ?",
+            (workspace_id, like, limit),
+        )
+        bridges = await self.db.fetchall(
+            """
+            select b.id, nf.label as from_label, nt.label as to_label, b.reason, b.status, b.confidence, b.updated_at, 'bridge' as result_type
+            from latent_bridges b
+            join concept_nodes nf on nf.id = b.from_node_id
+            join concept_nodes nt on nt.id = b.to_node_id
+            where b.workspace_id = ?
+              and (nf.label like ? or nt.label like ? or b.reason like ?)
+            order by b.confidence desc, b.updated_at desc limit ?
+            """,
+            (workspace_id, like, like, like, limit),
+        )
         sources = await self.db.fetchall(
             "select id, title, year, source_type, updated_at, 'source' as result_type from source_cards where workspace_id = ? and (title like ? or coalesce(abstract, '') like ?) order by updated_at desc limit ?",
             (workspace_id, like, like, limit),
         )
-        return {"sessions": sessions, "turns": turns, "maps": maps, "claims": claims, "sources": sources}
+        return {"chats": chats, "turns": turns, "concepts": concepts, "claims": claims, "questions": questions, "bridges": bridges, "sources": sources}
 
     async def learning_events(self, workspace_id: str) -> list[dict[str, Any]]:
         return await self.db.fetchall("select * from events where workspace_id = ? order by created_at asc", (workspace_id,))
@@ -873,6 +1150,45 @@ class Repository:
             metadata=loads(row["metadata_json"], {}),
         )
 
+    def _research_task_from_row(self, row: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "id": row["id"],
+            "workspace_id": row["workspace_id"],
+            "session_id": row["session_id"],
+            "turn_id": row["turn_id"],
+            "query": row["query"],
+            "task_type": row["task_type"],
+            "status": row["status"],
+            "priority": row["priority"],
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+            "result_artifact_id": row["result_artifact_id"],
+            "metadata": loads(row["metadata_json"], {}),
+        }
+
+    def _bridge_from_row(self, row: dict[str, Any]) -> dict[str, Any]:
+        metadata = loads(row["metadata_json"], {})
+        return {
+            "id": row["id"],
+            "workspace_id": row["workspace_id"],
+            "from_node_id": row["from_node_id"],
+            "to_node_id": row["to_node_id"],
+            "from_label": row.get("from_label"),
+            "to_label": row.get("to_label"),
+            "from_map_title": row.get("from_map_title"),
+            "to_map_title": row.get("to_map_title"),
+            "bridge_type": row["bridge_type"],
+            "reason": row["reason"],
+            "confidence": row["confidence"],
+            "status": row["status"],
+            "discovered_by": row["discovered_by"],
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+            "evidence_artifact_ids": loads(row["evidence_artifact_ids_json"], []),
+            "metadata": metadata,
+            "provenance": metadata.get("provenance", []),
+        }
+
     def _event_from_row(self, row: dict[str, Any]) -> EventOut:
         return EventOut(
             id=row["id"],
@@ -886,3 +1202,16 @@ class Repository:
             causation_id=row["causation_id"],
             correlation_id=row["correlation_id"],
         )
+
+    def _merge_provenance(self, existing: list[dict[str, Any]], new: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        merged: list[dict[str, Any]] = []
+        seen: set[tuple[Any, Any, Any]] = set()
+        for item in [*existing, *new]:
+            if not isinstance(item, dict):
+                continue
+            key = (item.get("session_id"), item.get("turn_id"), item.get("note"))
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(item)
+        return merged

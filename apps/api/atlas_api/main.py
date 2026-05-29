@@ -13,9 +13,11 @@ from fastapi.staticfiles import StaticFiles
 from atlas_api.api import (
     routes_atlas,
     routes_commands,
+    routes_dev,
     routes_events,
     routes_exports,
     routes_health,
+    routes_learn,
     routes_patches,
     routes_search,
     routes_sessions,
@@ -51,7 +53,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Learning Chat", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Research Partner", version="0.1.0", lifespan=lifespan)
 settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
@@ -83,12 +85,14 @@ for router in [
     routes_health.router,
     routes_sessions.router,
     routes_turns.router,
+    routes_learn.router,
     routes_atlas.router,
     routes_patches.router,
     routes_sources.router,
     routes_search.router,
     routes_exports.router,
     routes_events.router,
+    routes_dev.router,
     routes_commands.router,
 ]:
     app.include_router(router, prefix=api_router_prefix)
@@ -105,13 +109,16 @@ if assets_dir.exists():
 async def spa_fallback(full_path: str):
     if full_path.startswith("api/"):
         return JSONResponse(status_code=404, content={"error": {"code": "not_found", "message": "API route not found"}})
+    requested = web_dist / full_path
+    if requested.exists() and requested.is_file():
+        return FileResponse(requested)
     index = web_dist / "index.html"
     if index.exists():
         return FileResponse(index)
     return JSONResponse(
         status_code=200,
         content={
-            "app": "Learning Chat API",
+            "app": "Research Partner API",
             "message": "Frontend build not found. Run scripts/build.sh for production or scripts/dev.sh for Vite dev.",
         },
     )
