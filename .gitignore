@@ -37,4 +37,4 @@ coverage/
 .vite/
 playwright-report/
 test-results/
-docs/live_learning/artifacts/
+docs/live_learning/
